@@ -1083,6 +1083,9 @@ CLASS z2ui5_cl_layo_pop IMPLEMENTATION.
         )->a( n = `key` v = '{FNAME}' 
         )->a( n = `text` v = '{FNAME} {TLABEL}' 
         )->end( 
+        )->tag( `CheckBox` 
+        )->a( n = `text` v = 'Show Description' 
+        )->a( n = `selected` v = `{SHOW_DESCR}` 
         )->tag( `Button` 
         )->a( n = `icon` v = 'sap-icon://decline' 
         )->a( n = `type` v = `Transparent` 
@@ -1137,12 +1140,23 @@ CLASS z2ui5_cl_layo_pop IMPLEMENTATION.
           RETURN.
         ENDIF.
 
+        " a line without a field name is no subcolumn
+        DELETE mo_layout->mt_sub_cols WHERE fname IS INITIAL.
+
         CLEAR layout->subcolumn.
 
+        " every field name is followed by its show-description flag (`X` or
+        " space). built up in a string: embedding the CHAR field of the layout
+        " position would cut off a flag of space before the next field name
+        DATA(subcolumn) = ``.
+
         LOOP AT mo_layout->mt_sub_cols REFERENCE INTO DATA(line).
-          layout->subcolumn = |{ layout->subcolumn } { line->fname }|.
+          subcolumn = |{ subcolumn } { line->fname } { line->show_descr }|.
         ENDLOOP.
-        SHIFT layout->subcolumn LEFT DELETING LEADING space.
+
+        SHIFT subcolumn LEFT DELETING LEADING space.
+
+        layout->subcolumn = subcolumn.
 
         layout->t_sub_col = mo_layout->mt_sub_cols.
 
@@ -1163,7 +1177,8 @@ CLASS z2ui5_cl_layo_pop IMPLEMENTATION.
         render_edit( ).
 
       WHEN `SUBCOLUMN_ADD`.
-        INSERT VALUE #( key = z2ui5_cl_util=>uuid_get_c32( ) ) INTO TABLE mo_layout->mt_sub_cols.
+        INSERT VALUE #( key        = z2ui5_cl_util=>uuid_get_c32( )
+                        show_descr = abap_true ) INTO TABLE mo_layout->mt_sub_cols.
         client->popup_model_update( ).
 
       WHEN `SUBCOLUMN_DELETE`.

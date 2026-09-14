@@ -30,8 +30,9 @@ CLASS z2ui5_cl_layo_manager DEFINITION
 
     TYPES:
       BEGIN OF ty_s_sub_columns,
-        key   TYPE string,
-        fname TYPE string,
+        key        TYPE string,
+        fname      TYPE string,
+        show_descr TYPE abap_bool,
       END OF ty_s_sub_columns.
     TYPES ty_t_sub_columns TYPE STANDARD TABLE OF ty_s_sub_columns WITH EMPTY KEY.
 
@@ -378,10 +379,43 @@ CLASS z2ui5_cl_layo_manager IMPLEMENTATION.
 
     LOOP AT result REFERENCE INTO DATA(line) WHERE subcolumn IS NOT INITIAL.
 
+      CLEAR line->t_sub_col.
+
       SPLIT line->subcolumn AT ` ` INTO TABLE DATA(tab).
 
-      line->t_sub_col = VALUE #( FOR t IN tab
-                                 ( key = z2ui5_cl_util=>uuid_get_c32( ) fname = t ) ).
+      " every field name is followed by its show-description flag (`X` or space).
+      " layouts saved before that flag existed list field names only - there the
+      " description keeps being shown
+      DATA(legacy) = xsdbool(     NOT line_exists( tab[ table_line = `X` ] )
+                              AND NOT line_exists( tab[ table_line = `` ] ) ).
+
+      DATA(index) = 0.
+
+      WHILE index < lines( tab ).
+
+        index = index + 1.
+        DATA(fname) = tab[ index ].
+
+        IF fname IS INITIAL.
+          CONTINUE.
+        ENDIF.
+
+        DATA(show_descr) = legacy.
+
+        " a trailing flag of the last field name is lost in the database CHAR
+        " field, it falls back to the default of the format in use
+        DATA(next) = index + 1.
+        READ TABLE tab INDEX next INTO DATA(flag).
+        IF sy-subrc = 0 AND ( flag IS INITIAL OR flag = `X` ).
+          show_descr = xsdbool( flag = `X` ).
+          index      = next.
+        ENDIF.
+
+        APPEND VALUE #( key        = z2ui5_cl_util=>uuid_get_c32( )
+                        fname      = fname
+                        show_descr = show_descr ) TO line->t_sub_col.
+
+      ENDWHILE.
 
     ENDLOOP.
 

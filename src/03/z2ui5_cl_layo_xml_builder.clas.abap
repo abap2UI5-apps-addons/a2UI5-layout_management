@@ -497,12 +497,16 @@ CLASS z2ui5_cl_layo_xml_builder IMPLEMENTATION.
             READ TABLE i_layout->ms_layout-t_layout INTO DATA(line) WITH KEY fname = subcol-fname.
 
             IF line-reference_field IS INITIAL.
-              DATA(column) = |{ line-tlabel }: { table_value_formatter( line ) }|.
+              DATA(column) = table_value_formatter( line ).
             ELSE.
 
               READ TABLE i_layout->ms_layout-t_layout INTO DATA(ref) WITH KEY fname = line-reference_field.
 
-              column = |{ line-tlabel }: { table_value_formatter( line ) } { table_value_formatter( ref ) }|.
+              column = |{ table_value_formatter( line ) } { table_value_formatter( ref ) }|.
+            ENDIF.
+
+            IF subcol-show_descr = abap_true.
+              column = |{ line-tlabel }: { column }|.
             ENDIF.
 
             IF index = 1.
